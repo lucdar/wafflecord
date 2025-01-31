@@ -1,7 +1,7 @@
 mod commands;
 mod subscriptions;
 
-use chrono::{Utc, Weekday};
+use chrono::{Local, Weekday};
 use poise::serenity_prelude as serenity;
 use std::env::var;
 use std::sync::Arc;
@@ -110,7 +110,7 @@ async fn main() {
         .week()
         .on(Weekday::Wed)
         .at(12, 00, 00)
-        .in_timezone(&Utc)
+        .in_timezone(&Local)
         .perform(move || {
             let subscriptions = subscriptions_clone.clone();
             let http = http_clone.clone();
