@@ -38,8 +38,28 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
+    //// Load config from environment ////
+    // WAFFLECORD_SUBSCRIBERS_DIR: Directory where sled can store the list of
+    //   subscribed channels
+    // DISCORD_TOKEN: Token for the discord bot
+    let subscriptions = Arc::new(
+        SubscriptionStore::try_load(
+            var("WAFFLECORD_SUBSCRIBERS_DIR")
+                .expect("Missing `WAFFLECORD_SUBSCRIBERS_DIR` env var")
+                .into(),
+        )
+        .expect("Error loading subscribers database."),
+    );
+    let token = var("DISCORD_TOKEN").expect(
+        "Missing `DISCORD_TOKEN` env var, see README for more information.",
+    );
+
+    //// Configure poise framework ////
+    let commands: Vec<poise::Command<Data, Error>> =
+        vec![commands::subscribe(), commands::unsubscribe()];
+
     let options = poise::FrameworkOptions {
-        commands: vec![ /* commands::subscribe() commands::unsubscribe() */ ],
+        commands,
         on_error: |error| Box::pin(on_error(error)),
         pre_command: |ctx| {
             Box::pin(async move {
@@ -57,35 +77,23 @@ async fn main() {
         ..Default::default()
     };
 
-    let commands: Vec<poise::Command<Data, Error>> =
-        vec![commands::subscribe(), commands::unsubscribe()];
-
-    let subscriptions = Arc::new(
-        SubscriptionStore::try_load(
-            var("WAFFLECORD_SUBSCRIBERS_DIR")
-                .expect("Missing `WAFFLECORD_SUBSCRIBERS_DIR` env var")
-                .into(),
-        )
-        .expect("Error loading subscribers database."),
-    );
     let subscriptions_clone = subscriptions.clone();
-
     let framework = poise::Framework::builder()
-        .setup(move |ctx, _ready, _framework| {
+        .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
                 println!("Logged in as {}", _ready.user.name);
-                poise::builtins::register_globally(ctx, &commands).await?;
+                poise::builtins::register_globally(
+                    ctx,
+                    &framework.options().commands,
+                )
+                .await?;
                 Ok(Data {
-                    subscriptions: subscriptions.clone(),
+                    subscriptions: subscriptions_clone,
                 })
             })
         })
         .options(options)
         .build();
-
-    let token = var("DISCORD_TOKEN").expect(
-        "Missing `DISCORD_TOKEN` env var, see README for more information.",
-    );
 
     let intents = serenity::GatewayIntents::GUILDS
         | serenity::GatewayIntents::GUILD_MESSAGES;
@@ -94,8 +102,10 @@ async fn main() {
         .framework(framework)
         .await
         .expect("Error creating client");
-    let http_clone = client.http.clone();
 
+    //// Schedule notifications ////
+    let subscriptions_clone = subscriptions.clone();
+    let http_clone = client.http.clone();
     let notification_task = tokio_schedule::every(1)
         .week()
         .on(Weekday::Wed)
@@ -115,5 +125,6 @@ async fn main() {
         });
     tokio::spawn(notification_task);
 
+    //// Start the bot ////
     client.start().await.unwrap()
 }
