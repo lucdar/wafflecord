@@ -2,7 +2,8 @@ mod commands;
 mod subscriptions;
 
 use chrono::{Local, Weekday};
-use poise::serenity_prelude as serenity;
+use indoc::formatdoc;
+use poise::serenity_prelude::{self as serenity, ChannelType, CreateThread};
 use std::env::var;
 use std::sync::Arc;
 use subscriptions::SubscriptionStore;
@@ -115,11 +116,28 @@ async fn main() {
             let subscriptions = subscriptions_clone.clone();
             let http = http_clone.clone();
             async move {
-                let notification = String::from("Test Message");
+                let date = Local::now().format("%D");
+                let week_label = format!("week of {date}");
                 for sub in subscriptions.subscribers_iter() {
-                    http.send_message(sub.channel_id, vec![], &notification)
+                    let role_ping = match sub.role_id {
+                        Some(role_id) => format!("{role_id}"),
+                        None => "Waflers".into(),
+                    };
+                    let content = formatdoc! {"
+                        # Waffle Time! (week of {week_label})
+                        Hey {role_ping}, It's time for the weekly waffle!
+                    "};
+                    let message = http
+                        .send_message(sub.channel_id, vec![], &content)
                         .await
                         .expect("Failed to send message");
+                    let thread =
+                        CreateThread::new(format!("{week_label} waffling"))
+                            .kind(ChannelType::PublicThread);
+                    sub.channel_id
+                        .create_thread_from_message(&http, message.id, thread)
+                        .await
+                        .expect("Failed to create thread");
                 }
             }
         });
