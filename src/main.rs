@@ -122,16 +122,17 @@ async fn main() {
             let subscriptions = subscriptions_clone.clone();
             let http = http_clone.clone();
             async move {
-                let date = Local::now().format("%D");
-                let week_label = format!("week of {date}");
+                let date_str = Local::now().format("%D");
+                let mut successes = 0;
                 for sub in subscriptions.subscribers_iter() {
                     let role_ping = match sub.role_id {
-                        Some(role_id) => format!("{role_id}"),
+                        Some(role_id) => format!("<@&{role_id}>"),
                         None => "Waflers".into(),
                     };
                     let content = formatdoc! {"
-                        # Waffle Time! (week of {week_label})
-                        Hey {role_ping}, It's time for the weekly waffle!
+                        # It's Waffle Wednesday! 
+                        {role_ping}, leave your waffles in the thread below.
+                        -# (week of {date_str})
                     "};
                     let message =
                         match sub.channel_id.say(&http, &content).await {
@@ -142,16 +143,19 @@ async fn main() {
                             }
                         };
                     let thread =
-                        CreateThread::new(format!("{week_label} waffling"))
+                        CreateThread::new(format!("{date_str} waffling"))
                             .kind(ChannelType::PublicThread);
                     if let Err(e) = sub
                         .channel_id
                         .create_thread_from_message(&http, message.id, thread)
                         .await
                     {
-                        eprintln!("Failed to create thread: {e}")
+                        eprintln!("Failed to create thread: {e}");
+                        return;
                     }
+                    successes += 1;
                 }
+                println!("Sent notifications to {successes} channels.");
             }
         });
     tokio::spawn(notification_task);
