@@ -51,7 +51,7 @@ async fn main() {
         )
         .expect("Error loading subscribers database."),
     );
-    let token = var("DISCORD_TOKEN").expect(
+    let token = var("WAFFLECORD_DISCORD_TOKEN").expect(
         "Missing `DISCORD_TOKEN` env var, see README for more information.",
     );
 
