@@ -16,17 +16,25 @@ pub struct Subscriber {
 
 impl SubscriptionStore {
     pub fn try_load(path: PathBuf) -> Result<Self> {
-        Ok(SubscriptionStore {
-            db: sled::open(path)?,
-        })
+        match sled::open(path) {
+            Ok(db) => {
+                println!("Loaded {} subscribers.", db.len());
+                Ok(SubscriptionStore { db })
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Returns an iterator over all of the current subscribers
     pub fn subscribers_iter(&self) -> impl Iterator<Item = Subscriber> {
-        self.db.iter().filter_map(|item| {
-            if let Ok((_id, value)) = item {
-                bincode::deserialize(&value).ok()
-            } else {
+        self.db.iter().filter_map(|item| match item {
+            Ok((_id, value)) => bincode::deserialize::<Subscriber>(&value)
+                .inspect_err(|e| {
+                    eprintln!("Error parsing Subscriber {e}");
+                })
+                .ok(),
+            Err(e) => {
+                eprintln!("Error reading from db {e}");
                 None
             }
         })

@@ -61,7 +61,10 @@ async fn main() {
 
     let options = poise::FrameworkOptions {
         commands,
-        on_error: |error| Box::pin(on_error(error)),
+        on_error: |error| {
+            eprintln!("An error occurred: {error}");
+            Box::pin(on_error(error))
+        },
         pre_command: |ctx| {
             Box::pin(async move {
                 println!(
@@ -72,7 +75,10 @@ async fn main() {
         },
         post_command: |ctx| {
             Box::pin(async move {
-                println!("Executed command {}!", ctx.command().qualified_name);
+                println!(
+                    "Finished executing {}.",
+                    ctx.command().qualified_name
+                );
             })
         },
         ..Default::default()
@@ -127,17 +133,24 @@ async fn main() {
                         # Waffle Time! (week of {week_label})
                         Hey {role_ping}, It's time for the weekly waffle!
                     "};
-                    let message = http
-                        .send_message(sub.channel_id, vec![], &content)
-                        .await
-                        .expect("Failed to send message");
+                    let message =
+                        match sub.channel_id.say(&http, &content).await {
+                            Ok(msg) => msg,
+                            Err(e) => {
+                                eprintln!("Failed to send message: {e}");
+                                return;
+                            }
+                        };
                     let thread =
                         CreateThread::new(format!("{week_label} waffling"))
                             .kind(ChannelType::PublicThread);
-                    sub.channel_id
+                    if let Err(e) = sub
+                        .channel_id
                         .create_thread_from_message(&http, message.id, thread)
                         .await
-                        .expect("Failed to create thread");
+                    {
+                        eprintln!("Failed to create thread: {e}")
+                    }
                 }
             }
         });
