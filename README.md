@@ -7,7 +7,7 @@ Wafflecord is a discord bot that sends weekly notifications to subscribed channe
 Clone the repository and build with `cargo`:
 
 ```bash
-git clone https://github.com/lucdar/wafflecord"
+git clone https://github.com/lucdar/wafflecord
 cd wafflecord
 cargo build --release
 ```
