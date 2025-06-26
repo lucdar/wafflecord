@@ -113,10 +113,10 @@ async fn main() {
     //// Schedule notifications ////
     let subscriptions_clone = subscriptions.clone();
     let http_clone = client.http.clone();
-    let notification_task = tokio_schedule::every(1)
-        .week()
-        .on(Weekday::Wed)
-        .at(12, 00, 00)
+    let notification_task = tokio_schedule::every(4)
+        .weeks()
+        .on(Weekday::Thu)
+        .at(4, 30, 00)
         .in_timezone(&Local)
         .perform(move || {
             let subscriptions = subscriptions_clone.clone();
