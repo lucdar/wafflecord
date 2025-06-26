@@ -115,7 +115,7 @@ async fn main() {
     let http_clone = client.http.clone();
     let notification_task = tokio_schedule::every(4)
         .weeks()
-        .on(Weekday::Thu)
+        .on(Weekday::Wed)
         .at(4, 30, 00)
         .in_timezone(&Local)
         .perform(move || {
